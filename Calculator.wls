@@ -113,13 +113,15 @@ calcoptBLP[llf_?(NumericQ @ # && 10 <= # <= 1*^6&), initstars_Integer?(0 <= # <=
 calcoptBLP[llf_?(NumericQ @ # && 10 <= # <= 1*^6&), initstars_Integer?(0 <= # <= 1*^9&), ex_List /; Length[ex] == 19, Optional[Automatic, Automatic]] :=
     Block[{count = Length[Select[frontierLevel[llf, #1, #2]& @@@ priceTab1, # > 0&]]},
         count = Clip[count, {2, 19}];
-        Print["Automatic unlock count used: ", count, " (enter it manually after a Supremacy, your unlocks persist while f(t) resets)"];
+        Print["Automatic unlock count used: ", count, " (better: enter the new-variable level from the Star Bonuses panel)"];
         calcoptBLP[llf, initstars, ex, count]
     ];
 
 
 calcoptBLP[llf_?(NumericQ @ # && 10 <= # <= 1*^6&), initstars_Integer?(0 <= # <= 1*^9&), ex_List /; Length[ex] == 19, unlocked_Integer /; 2 <= unlocked <= 19] :=
-    Block[{res = calcoptBLPComp[llf, initstars, ex, unlocked]},
+    Block[{res},
+        Print["unlocked variables: ", unlocked, " (up to ", symbTable[[unlocked]], "), next: ", If[unlocked < 19, symbTable[[unlocked + 1]], "none"]];
+        res = calcoptBLPComp[llf, initstars, ex, unlocked];
         printCalcoptGrid[res, unlocked, initstars]
     ];
 

@@ -36,17 +36,18 @@
     <h1 class="text-color text-bold">Star Optimizer</h1>
     <h3 class="text-color-light text-bold">原作者 Eaux Tacous#1021</h3>
 	<h3 class="text-color-light text-bold">汉化者 GSUI5051#6005</h3>
+    <h6 class="text-color-light">变量解锁修复与维护：<a href="https://github.com/leg-anpiluo" target="_newtab">anpiluo</a></h6>
     <h3 class="text-color-medium">使用说明</h3>
     <p class="stars-par text-color">对于 f(t)，输入你<b>下一个要购买的最便宜升级/变量</b>价格的 ee 后面的数字（即你还没买过的最便宜的一项），并确保价格小于该输入的变量和升级都已购买。</p>
     <p class="stars-par text-color">对于星星数量，输入的是你能在变量永久等级中分配的星星总数。要知道这一总数，需要进行一次只重置变量永久等级的加成重置。</p>
     <p class="stars-par text-color">对于超越等级，输入的是第三个超越升级的等级。购买第三个归一升级的第一个等级需要 1e110ψ. 如果你未购买此升级，请在“输入你的超越等级”中输入 0 或留空。</p>
-    <p class="stars-par text-color">对于已解锁变量，输入你已在星标商店用星星解锁的变量总数（含 y 和 z，范围 2-19）。变量解锁是永久的、跨超越保留，而 f(t) 每次超越都会重置变小，所以做过超越后无法从 f(t) 推断解锁数——请手动填写。留空则从 f(t) 自动推断。</p>
+    <p class="stars-par text-color">对于新变量等级，打开<b>「星加成」</b>面板，读取<b>「新变量」</b>购买条目上显示的等级（就是解锁你下一个变量的那一项）。例如你最新解锁的是 δ、下一项是 ε 且显示 7 级，就填 7。变量解锁是永久的、跨超越保留，而 f(t) 每次超越都会重置变小，所以做过超越后无法从 f(t) 推断——请手动填写。留空则从 f(t) 自动推断。</p>
 	<p class="stars-par text-color"><a href="https://github.com/GSUI5051/StarOptimizer" target="_newtab">源代码</a></p>
 	<p class="stars-par text-color">For English Version, <a href="index.html" target="_newtab">Click Here!</a></p>
     <input class="color-medium stars-input" id="ft" rows="1" placeholder="输入你的 f(t)" spellcheck="false">
     <input class="color-medium stars-input" id="stars" rows="1" placeholder="输入你的星星数量" spellcheck="false">
     <input class="color-medium stars-input" id="upgrade" rows="1" placeholder="输入你的归一等级（此处留空为自动匹配）" spellcheck="false">
-    <input class="color-medium stars-input" id="unlocked" rows="1" placeholder="已用星星解锁的变量总数（含 y 和 z，留空为自动推断）" spellcheck="false">
+    <input class="color-medium stars-input" id="unlocked" rows="1" placeholder="「星加成」面板里「新变量」购买条目的等级（留空为自动推断）" spellcheck="false">
     
     <div id="buttons" height="50">
     <button id="distribute" class="stars-button color-light" onclick="distribute()">计算！</button>
@@ -54,7 +55,7 @@
     <p id="ft-error" class="stars-error text-color" style="display: none">错误：f(t) 无效</p>
     <p id="stars-error" class="stars-error text-color" style="display: none">错误：星星数量无效</p>
     <p id="upgrade-error" class="stars-error text-color" style="display: none">错误：超越等级无效</p>
-    <p id="unlocked-error" class="stars-error text-color" style="display: none">错误：已解锁变量数无效（范围 2-19）</p>
+    <p id="unlocked-error" class="stars-error text-color" style="display: none">错误：新变量购买等级无效（范围 0-16）</p>
     <p id="request-error" class="stars-error text-color" style="display: none">发生错误，请在 GitHub 上联系作者。</p>
     <div id="loader" class="loader" style="display: none"></div>
     <div id="result"></div>
@@ -86,18 +87,16 @@ async function distribute() {
     let ft = parseFloat(_("ft").value);
     let stars = parseFloat(_("stars").value);
     let upgradeLevel = _("upgrade").value;
-    let unlocked = _("unlocked").value;
+    let unlockedLevel = _("unlocked").value;
     let isFtValid = !isNaN(ft) && ft > 0;
     let isStarsValid = !isNaN(stars) && stars > 0;
     let isUpgradeValid = upgradeLevel === "" || !isNaN(parseInt(upgradeLevel));
-    let isUnlockedValid = unlocked === "" || (!isNaN(parseInt(unlocked)) && parseInt(unlocked) >= 2 && parseInt(unlocked) <= 19);
+    let isUnlockedValid = unlockedLevel === "" || (!isNaN(parseInt(unlockedLevel)) && parseInt(unlockedLevel) >= 0 && parseInt(unlockedLevel) <= 16);
     
     if (upgradeLevel === "")
         upgradeLevel = "Automatic";
-    if (unlocked === "")
-        unlocked = "Automatic";
-    else
-        unlocked = String(parseInt(unlocked));
+    // 游戏初始已解锁 y、z、s，所以面板等级 + 3 = 已解锁变量数
+    let unlocked = unlockedLevel === "" ? "Automatic" : String(Math.min(parseInt(unlockedLevel) + 3, 19));
     
     setVisibility("result", false);
     setVisibility("result-info", false);
