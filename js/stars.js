@@ -22,7 +22,7 @@ function byteArrayToByteString(byteArray) {
 }
 
 function deflate(byteString) {
-	return pako.deflateRaw(byteStringToByteArray(byteString), {"level": 9});
+	return pako.deflateRaw(new TextEncoder().encode(byteString), {"level": 9});
 }
 
 function inflate(byteString) {
@@ -62,13 +62,15 @@ let header = null;
 let footer = null;
 let outerFooter = "F.input.tio\u00000\u0000Vargs\u00000\u0000R";
 
-function getInnerString(ft, stars, levelExtraExponents){
-	return header + ft.toString() + "," + stars.toString() + "," + levelExtraExponents.toString() + footer;
+function getInnerString(ft, stars, levelExtraExponents, unlocked){
+	return header + ft.toString() + "," + stars.toString() + "," + levelExtraExponents.toString() + "," + unlocked.toString() + footer;
 }
 
-function getFinalString(ft, stars, levelExtraExponents){
-	let innerString = getInnerString(ft, stars, levelExtraExponents);
-	return outerHeader + innerString.length + "\u0000" + innerString + outerFooter;
+function getFinalString(ft, stars, levelExtraExponents, unlocked){
+	let innerString = getInnerString(ft, stars, levelExtraExponents, unlocked);
+	// the tio format declares the length of the following code in BYTES
+	let innerBytes = new TextEncoder().encode(innerString);
+	return outerHeader + innerBytes.length + "\u0000" + innerString + outerFooter;
 }
 
 //END CODE GENERATION
@@ -116,7 +118,7 @@ function processRequest(request, resolve, reject){
     resolve(results[0]);
 }
 
-async function optimalStars(ft, stars, levelExtraExponents){
+async function optimalStars(ft, stars, levelExtraExponents, unlocked){
     let date1 = new Date();
     if(header === null){
         let calculatordata = await fetch("Calculator.wls");
@@ -138,7 +140,7 @@ async function optimalStars(ft, stars, levelExtraExponents){
         let runRequest = new XMLHttpRequest();
         let token = getRandomBits(128);
         let finalUrl = URL_RUN + token;
-        let finalBodyData = deflate(getFinalString(ft, stars, levelExtraExponents));
+        let finalBodyData = deflate(getFinalString(ft, stars, levelExtraExponents, unlocked));
         runRequest.open("POST", finalUrl, true);
         runRequest.responseType = "arraybuffer";
         runRequest.onreadystatechange = () => { processRequest(runRequest, resolve, reject); };

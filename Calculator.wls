@@ -35,6 +35,18 @@ externLP = Flatten[LinearProgramming[##]]&;
 (*Main algorithm*)
 
 
+(* ::Text:: *)
+(*2021-09: rewritten from the original compiled calcoptBLPComp (WDX blob) into plain
+Wolfram Language, with one behavioural addition: an "unlocked variables" gate.
+The optimizer previously assumed all 19 star variables were purchasable, so it
+could recommend star levels for variables the player has not unlocked yet
+(variables are unlocked with stars in the star shop, which persists across
+supremacies while f(t) resets - so f(t) alone cannot infer unlocks).
+The 4th argument is the number of unlocked variables (2..19, y and z included).
+Automatic infers it from the f(t) price frontier (matches a fresh run, and is
+the safe default). Passing 19 reproduces the original behaviour exactly.*)
+
+
 calcoptBLPWrapper[in___] :=
     Print[
         StringReplace[
@@ -77,175 +89,236 @@ calcoptBLP[___] :=
     Throw[Print @ Style["Invalid Input", Hue[{0, .8, .9}]]];
 
 
-calcoptBLP[llf_, initstars:Except[_Integer]?NumericQ, opt_.] :=
-    calcoptBLP[llf, Round[initstars], opt]
+calcoptBLP[llf_, initstars:Except[_Integer]?NumericQ, x_:Automatic, u_:Automatic] :=
+    calcoptBLP[llf, Round[initstars], x, u];
 
 
-calcoptBLP[llf_?(NumericQ @ # && 10 <= # <= 1*^6&), initstars_Integer?(0 <= # <= 1*^9&), Optional[Automatic, Automatic]] :=
+calcoptBLP[llf_?(NumericQ @ # && 10 <= # <= 1*^6&), initstars_Integer?(0 <= # <= 1*^9&), Optional[Automatic, Automatic], Optional[u_, Automatic]] :=
     Block[{lpsi, level},
         lpsi = (llf / 25 - 1) / Log2[10];
         level = Clip[Quotient[lpsi, 20, 90], {0, 24}];
         Print["Automatic third argument used: ", level];
-        calcoptBLP[llf, initstars, level]
+        calcoptBLP[llf, initstars, level, u]
     ];
 
 
-calcoptBLP[llf_?(NumericQ @ # && 10 <= # <= 1*^6&), initstars_Integer?(0 <= # <= 1*^9&), ex_Integer /; 0 <= ex <= 24] :=
-    calcoptBLP[llf, initstars, Prepend[Table[Clip[1 + 0.04 * (ex - 2 n), {1, 1.08}], {n, 0, 17}], 9]];
+calcoptBLP[llf_?(NumericQ @ # && 10 <= # <= 1*^6&), initstars_Integer?(0 <= # <= 1*^9&), ex_Integer /; 0 <= ex <= 24, u_:Automatic] :=
+    calcoptBLP[llf, initstars, Prepend[Table[Clip[1 + 0.04 * (ex - 2 n), {1, 1.08}], {n, 0, 17}], 9], u];
 
 
-calcoptBLPComp = ImportString[
-"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
-424TH52824T84HL9KgD+P+YPs/U=",
-{"Base64", "WDX"}];
+calcoptBLP[llf_?(NumericQ @ # && 10 <= # <= 1*^6&), initstars_Integer?(0 <= # <= 1*^9&), ex_List /; Length[ex] == 19, u_Integer /; ! (2 <= u <= 19)] :=
+    calcoptBLP[llf, initstars, ex, Clip[u, {2, 19}]];
 
 
-calcoptBLP[llf_?(NumericQ @ # && 10 <= # <= 1*^6&), initstars_Integer?(0 <= # <= 1*^9&), ex_List /; Length[ex] == 19] :=
-    Block[{fincosts, vars, finlevs, initpows, finpows, totpow, pows, powsd, grid, len = 19},
-        {fincosts, vars, finlevs, initpows, finpows} = calcoptBLPComp[llf, initstars, ex];
-        fincosts = Round@fincosts;
-        vars = Round@vars;
-        finlevs = Round@finlevs;
+calcoptBLP[llf_?(NumericQ @ # && 10 <= # <= 1*^6&), initstars_Integer?(0 <= # <= 1*^9&), ex_List /; Length[ex] == 19, Optional[Automatic, Automatic]] :=
+    Block[{count = Length[Select[frontierLevel[llf, #1, #2]& @@@ priceTab1, # > 0&]]},
+        count = Clip[count, {2, 19}];
+        Print["Automatic unlock count used: ", count, " (enter it manually after a Supremacy, your unlocks persist while f(t) resets)"];
+        calcoptBLP[llf, initstars, ex, count]
+    ];
+
+
+calcoptBLP[llf_?(NumericQ @ # && 10 <= # <= 1*^6&), initstars_Integer?(0 <= # <= 1*^9&), ex_List /; Length[ex] == 19, unlocked_Integer /; 2 <= unlocked <= 19] :=
+    Block[{res = calcoptBLPComp[llf, initstars, ex, unlocked]},
+        printCalcoptGrid[res, unlocked, initstars]
+    ];
+
+
+(* ::Section::Closed:: *)
+(*Model data (extracted verbatim from the original compiled function)*)
+
+
+priceA1 = {0.5, 0.625, 0.78125, 0.8931739295455593, 1.0211323755774153, 1.16742248509526, 1.3346705004190407, 1.459278106369075, 1.6315225219592102, 1.865258729062898, 2.085422656904751, 2.384185791015625, 2.725750517411985, 3.1162487047650607, 3.407188146764981, 3.9832092821269787, 4.453363361722031, 5.206251464550825, 5.820766091346741};
+priceB1 = {-4.143474048424998, -3.1709615006770515, 1.732020845644619, 15.973438351860704, 35.10114920824737, 62.78631425389338, 99.28201254141936, 144.78860583366378, 199.47274109054294, 263.4775066411068, 336.92853801096174, 512.6072746595227, 727.2885715481912, 849.4650465308255, 1123.859483302632, 1438.7509481751554, 1794.6202607002178, 2191.902179662476, 2630.993842401342};
+priceA2 = {2, 2.2, 2.42, 2.662, 2.9282, 3.22102, 3.543122, 3.8974342, 4.28717762, 4.715895382, 5.1874849202, 5.70623341222, 6.276856753442, 6.9045424287862, 7.59499667166483, 8.354496338831312, 9.189945972714444, 10.108940569985888, 11.119834626984478};
+priceB2 = {0.6992669815829572, 0.7336524096644791, 2.7382112580862277, 16.973438351860707, 36.10114920785727, 63.786314253893394, 100.28201254141943, 145.78860583366372, 200.47274109054277, 264.47750664110686, 337.92853801096135, 513.6072746595223, 728.2885715481901, 850.4650465308251, 1124.859483302631, 1439.7509481751538, 1795.620260700215, 2192.9021796624766, 2631.993842401341};
+starMult = {1, 0.27, 0.09, 0.1, 0.12, 0.17, 0.22, 0.5, 0.7, 0.9, 2, 3, 4, 4.5, 6, 7, 8, 9, 10};
+priceTab1 = Transpose[{priceA1, priceB1}];
+priceTab2 = Transpose[{priceA2, priceB2}];
+
+
+(* ::Section::Closed:: *)
+(*Core computation (plain WL equivalent of the original compiled function)*)
+
+
+(* Levels already purchased of a variable, inferred from the f(t) price frontier *)
+frontierLevel[llf_, a_, b_] := Max[0, Floor[((llf - Log[10, Log[10, 2]])/Log[10, 2] - b)/a + 1]];
+
+(* Effective exponent of a variable at level l (game formula) *)
+gexp[l_] := Which[l < 10, 0, l < 25, 1, l < 1500, l/25 + 1, l < 6000, l/50 + 31, l < 10000, l/100 + 91, l < 24000, l/200 + 141, True, l/400 + 201];
+
+powFn[l_, e_] := 2.^(e*Floor[gexp[l]])*l^e;
+
+(* Number of levels to the next power-regime boundary *)
+deltaLevelFn[l_] := Which[l < 10, 10 - l, l < 25, 25 - l, l < 1500, Mod[-l, 25, 1], l < 6000, Mod[-l, 50, 1], l < 10000, Mod[-l, 100, 1], l < 24000, Mod[-l, 200, 1], True, Mod[-l, 400, 1]];
+
+(* Star cost of dlv permanent levels starting at star-level cur *)
+starCost[a_, cur_, dlv_] := Sum[Floor[a*(cur + i)*Exp[a*(cur + i)/200] + 1], {i, 0, dlv - 1}];
+
+
+calcoptBLPComp[llf_, initstars_, ex_List, unlocked_] :=
+    Module[{ex2, totex, exps, vars, ups, upsc, initpows, fincosts, finlevs, finpows,
+        costbag, powerbag, levelbag, lengthbag, length, lengthlist, acc, costlist,
+        powerlist, levellist, m, b, c, x, maxp, weakThreshold, strongFlags, stars},
+        ex2 = FoldList[Times, 1, Rest[ex]];
+        totex = Last[ex2];
+        exps = ex2*totex^-1;
+        vars = frontierLevel[llf, #1, #2]& @@@ priceTab1;
+        ups = frontierLevel[llf, #1, #2] + 1& @@@ priceTab2;
+        upsc = FoldList[Times, 1, Power[Rest[ups], Most[exps]]];
+        initpows = MapThread[#2*powFn[#1, #3]&, {vars, upsc, exps}];
+        (* variables beyond the unlocked count do not exist for this player *)
+        initpows = Table[If[i <= unlocked, initpows[[i]], 0.], {i, 19}];
+        fincosts = Table[0, {19}];
+        finlevs = Table[0, {19}];
+        finpows = Table[0., {19}];
+        maxp = 0.;
+        length = 0;
+        costbag = Internal`Bag[Most[{1}]];
+        powerbag = Internal`Bag[];
+        levelbag = Internal`Bag[Most[{1}]];
+        lengthbag = Internal`Bag[Most[{1}]];
+        strongFlags = Table[1, {19}];
+
+        (* ---- pass 1: one cumulative option per power regime, LP picks <= 1 per variable ---- *)
+        Do[
+            If[i <= unlocked,
+                Block[{var$ = vars[[i]], up$ = upsc[[i]], exp$ = exps[[i]], star$ = starMult[[i]],
+                    initpow$ = initpows[[i]], prevCost = 0, prevLevel = 0, deltaLevel, cost = 0, power, level},
+                    While[cost < initstars,
+                        deltaLevel = deltaLevelFn[var$ + prevLevel];
+                        cost = prevCost + starCost[star$, prevLevel, deltaLevel];
+                        level = prevLevel + deltaLevel;
+                        power = up$*powFn[var$ + level, exp$] - initpow$;
+                        If[cost <= initstars,
+                            Internal`StuffBag[costbag, cost];
+                            Internal`StuffBag[powerbag, power];
+                            Internal`StuffBag[levelbag, level];
+                            length++;
+                            prevLevel = level;
+                            prevCost = cost;
+                            Null]
+                    ]
+                ],
+                Null
+            ];
+            Internal`StuffBag[lengthbag, length],
+            {i, 19}
+        ];
+        If[length > 0,
+            lengthlist = Internal`BagPart[lengthbag, All];
+            costlist = Internal`BagPart[costbag, All];
+            powerlist = Internal`BagPart[powerbag, All];
+            maxp = Max[powerlist];
+            levellist = Internal`BagPart[levelbag, All];
+            c = Chop[(-powerlist)/maxp];
+            m = Table[0, {20}, {length}];
+            acc = 1;
+            Fold[(Do[m[[acc, i]] = -1, {i, #1 + 1, #2}]; acc++; #2)&, 0, lengthlist];
+            m[[20]] = -costlist;
+            b = Table[If[i == 20, -initstars, -1], {i, 20}];
+            Print["LP size (pass 1): ", Dimensions[m]];
+            x = Round[externLP[c, m, b, Automatic, Integers, Rule[Tolerance, Power[10, -9]]]];
+            acc = 1;
+            Fold[(Do[If[x[[i]] == 1,
+                fincosts[[acc]] = costlist[[i]];
+                finlevs[[acc]] = levellist[[i]];
+                finpows[[acc]] = powerlist[[i]];
+                Null], {i, #1 + 1, #2}]; acc++; #2)&, 0, lengthlist];
+            weakThreshold = 2*Max[Table[
+                If[vars[[i]] + finlevs[[i]] > 0, (initpows[[i]] + finpows[[i]])/(vars[[i]] + finlevs[[i]]), 0.], {i, 19}]];
+            strongFlags = Table[Boole[initpows[[i]] + finpows[[i]] > weakThreshold], {i, 19}];
+            fincosts = strongFlags*fincosts;
+            finlevs = strongFlags*finlevs;
+            finpows = strongFlags*finpows;
+            Null
+        ];
+
+        (* ---- pass 2: refine with the remaining stars ---- *)
+        costbag = Internal`Bag[Most[{1}]];
+        powerbag = Internal`Bag[];
+        levelbag = Internal`Bag[Most[{1}]];
+        lengthbag = Internal`Bag[Most[{1}]];
+        length = 0;
+        stars = initstars - Total[fincosts];
+        Do[
+            If[i <= unlocked,
+                Block[{var$ = vars[[i]], up$ = upsc[[i]], exp$ = exps[[i]], star$ = starMult[[i]],
+                    initpow$ = initpows[[i]] + finpows[[i]], lev$ = finlevs[[i]], flag$ = strongFlags[[i]],
+                    prevCost = 0, prevLevel = lev$, deltaLevel, cost = 0, power, level},
+                    While[cost < stars,
+                        If[flag$ == 0,
+                            deltaLevel = deltaLevelFn[var$ + prevLevel];
+                            cost = prevCost + starCost[star$, prevLevel, deltaLevel];
+                            level = prevLevel + deltaLevel,
+                            cost = prevCost + Floor[star$*prevLevel*Exp[star$*prevLevel/200] + 1];
+                            level = prevLevel + 1
+                        ];
+                        power = up$*powFn[var$ + level, exp$] - initpow$;
+                        If[cost <= stars,
+                            Internal`StuffBag[costbag, cost];
+                            Internal`StuffBag[powerbag, power];
+                            Internal`StuffBag[levelbag, level - lev$];
+                            length++;
+                            prevLevel = level;
+                            prevCost = cost;
+                            Null]
+                    ]
+                ],
+                Null
+            ];
+            Internal`StuffBag[lengthbag, length],
+            {i, 19}
+        ];
+        If[length > 0,
+            lengthlist = Internal`BagPart[lengthbag, All];
+            costlist = Internal`BagPart[costbag, All];
+            powerlist = Internal`BagPart[powerbag, All];
+            levellist = Internal`BagPart[levelbag, All];
+            c = Chop[(-powerlist)/Max[powerlist]];
+            m = Table[0, {20}, {length}];
+            acc = 1;
+            Fold[(Do[m[[acc, i]] = -1, {i, #1 + 1, #2}]; acc++; #2)&, 0, lengthlist];
+            m[[20]] = -costlist;
+            b = Table[If[i == 20, -stars, -1], {i, 20}];
+            Print["LP size (pass 2): ", Dimensions[m]];
+            x = Round[externLP[c, m, b, Automatic, Integers, Rule[Tolerance, Power[10, -9]]]];
+            acc = 1;
+            Fold[(Do[If[x[[i]] == 1,
+                fincosts[[acc]] += costlist[[i]];
+                finlevs[[acc]] += levellist[[i]];
+                finpows[[acc]] += powerlist[[i]];
+                Null], {i, #1 + 1, #2}]; acc++; #2)&, 0, lengthlist];
+            Null
+        ];
+
+        Print["dump y: ", Power[Total[initpows] + maxp, totex]];
+        Print["found y: ", Power[Total[finpows] + Total[initpows], totex]];
+        {fincosts, vars, finlevs, initpows, finpows}
+    ];
+
+
+(* ::Section::Closed:: *)
+(*Result table*)
+
+
+printCalcoptGrid[{fincosts_, vars_, finlevs_, initpows_, finpows_}, unlocked_, initstars_] :=
+    Block[{totpow, pows, powsd, grid, len = 19, prio},
         totpow = Total[initpows + finpows];
-        pows = (initpows + finpows) / totpow;
-        powsd = finpows / totpow;
+        pows = (initpows + finpows)/totpow;
+        powsd = finpows/totpow;
         Print["stars used: ", Total @ fincosts];
         Print["stars left: ", initstars - Total @ fincosts];
+        prio[i_] := If[i > unlocked, "locked",
+            Which[
+                finlevs[[i]] == 0, "none",
+                powsd[[i]] >= 0.01, "top",
+                powsd[[i]] >= 0.001, "high",
+                powsd[[i]] >= 0.0001, "medium",
+                True, "low"
+            ]];
         grid = {
-            symbTable, NumberForm[#, Infinity, NumberSigns -> {"-", "+"}]& /@ finlevs, fincosts, vars, finlevs + vars, PercentForm[#, {Infinity, 4}]& /@ pows, Table[
-                Which[
-                    finlevs[[i]] == 0,
-                        "none"
-                    ,
-                    powsd[[i]] >= 0.01,
-                        "top"
-                    ,
-                    powsd[[i]] >= 0.001,
-                        "high"
-                    ,
-                    powsd[[i]] >= 0.0001,
-                        "medium"
-                    ,
-                    True,
-                        "low"
-                ], {i, len}
-            ]
+            symbTable, NumberForm[#, Infinity, NumberSigns -> {"-", "+"}]& /@ finlevs, fincosts, vars, finlevs + vars, PercentForm[#, {Infinity, 4}]& /@ pows, Table[prio[i], {i, len}]
         } // Transpose;
         grid = Prepend[grid, {"variable", "\[CapitalDelta] level", "stars used", "level before", "level after", "power after", "priority"}];
         Print[Grid[
@@ -265,6 +338,9 @@ calcoptBLP[llf_?(NumericQ @ # && 10 <= # <= 1*^6&), initstars_Integer?(0 <= # <=
                     ,
                     "none",
                         RGBColor["#888"]
+                    ,
+                    "locked",
+                        RGBColor["#555"]
                     ,
                     _,
                         Automatic

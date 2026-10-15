@@ -37,14 +37,16 @@
     <h1 class="text-color text-bold">Star Optimizer</h1>
     <h3 class="text-color-light text-bold">By Eaux Tacous#1021</h3>
     <h3 class="text-color-medium">Instructions</h3>
-    <p class="stars-par text-color">For f(t), type the number after ee. Use the price of the next cheapest f(t) purchase. Make sure you have purchased all variables and upgrades that cost less than this input.</p>
+    <p class="stars-par text-color">For f(t), type the number after ee. Use the price of the next cheapest f(t) purchase, i.e., the cheapest one you have <b>not</b> bought yet. Make sure you have purchased all variables and upgrades that cost less than this input.</p>
     <p class="stars-par text-color">For stars, make sure this is the number of stars you can spend only on permanent levels, i.e., excluding variable and automation purchases.</p>
     <p class="stars-par text-color">For Supremacy upgrade, enter the highest level of the third Supremacy upgrade (the one that initially costs 1e110ψ). You won't see this upgrade unless you bought all levels of the "y exponent" upgrade. Leave the field blank if you don't have access to this upgrade yet or if you want it to be deduced from f(t).</p>
+    <p class="stars-par text-color">For unlocked variables, enter how many variables you have unlocked in the Star shop, counting y and z (2-19). Variable unlocks are permanent and survive Supremacy while f(t) resets, so after a Supremacy this cannot be deduced from f(t) - fill it in explicitly. Leave blank to let it be deduced from f(t).</p>
 	<p class="stars-par text-color"><a href="https://github.com/GSUI5051/StarOptimizer" target="_newtab">Source Code</a></p>
 	<p class="stars-par text-color"><a href="index2.html" target="_newtab">中文版请点这里！</a></p>
     <input class="color-medium stars-input" id="ft" rows="1" placeholder="Your f(t) here!" spellcheck="false">
     <input class="color-medium stars-input" id="stars" rows="1" placeholder="Your stars here!" spellcheck="false">
     <input class="color-medium stars-input" id="upgrade" rows="1" placeholder="Your Supremacy upgrade level here! (Leave blank for automatic)" spellcheck="false">
+    <input class="color-medium stars-input" id="unlocked" rows="1" placeholder="Variables unlocked with stars, y and z included (Leave blank for automatic)" spellcheck="false">
     
     <div id="buttons" height="50">
     <button id="distribute" class="stars-button color-light" onclick="distribute()">Distribute!</button>
@@ -52,6 +54,7 @@
     <p id="ft-error" class="stars-error text-color" style="display: none">Error: Invalid f(t)</p>
     <p id="stars-error" class="stars-error text-color" style="display: none">Error: Invalid stars</p>
     <p id="upgrade-error" class="stars-error text-color" style="display: none">Error: Invalid upgrade level</p>
+    <p id="unlocked-error" class="stars-error text-color" style="display: none">Error: Invalid unlocked variable count (2-19)</p>
     <p id="request-error" class="stars-error text-color" style="display: none">A error occured. Please contact someone. Anyone.</p>
     <div id="loader" class="loader" style="display: none"></div>
     <div id="result">
@@ -72,26 +75,33 @@ async function distribute() {
     let ft = parseFloat(_("ft").value);
     let stars = parseFloat(_("stars").value);
     let upgradeLevel = _("upgrade").value;
+    let unlocked = _("unlocked").value;
     let isFtValid = !isNaN(ft) && ft > 0;
     let isStarsValid = !isNaN(stars) && stars > 0;
     let isUpgradeValid = upgradeLevel === "" || !isNaN(parseInt(upgradeLevel));
+    let isUnlockedValid = unlocked === "" || (!isNaN(parseInt(unlocked)) && parseInt(unlocked) >= 2 && parseInt(unlocked) <= 19);
     
     if (upgradeLevel === "")
         upgradeLevel = "Automatic";
+    if (unlocked === "")
+        unlocked = "Automatic";
+    else
+        unlocked = String(parseInt(unlocked));
     
     setVisibility("result", false);
     setVisibility("request-error", false);
     setVisibility("ft-error", !isFtValid);
     setVisibility("stars-error", !isStarsValid);
     setVisibility("upgrade-error", !isUpgradeValid);
+    setVisibility("unlocked-error", !isUnlockedValid);
     
-    if (isFtValid && isStarsValid && isUpgradeValid)
+    if (isFtValid && isStarsValid && isUpgradeValid && isUnlockedValid)
     {
         _("distribute").disabled = true;
         setVisibility("loader", true);
         
         try {
-            let image = await optimalStars(ft, stars, upgradeLevel);
+            let image = await optimalStars(ft, stars, upgradeLevel, unlocked);
             _("result").innerHTML = "<img class=\"stars-result-image\" src=\"" + image + "\">";
             setVisibility("result", true);
         } catch {
